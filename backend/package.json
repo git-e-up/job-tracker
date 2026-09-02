@@ -1,0 +1,25 @@
+{
+  "name": "job-tracker-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "serverless offline start --stage local",
+    "deploy": "serverless deploy"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.145",
+    "@types/node": "^20.14.2",
+    "@types/uuid": "^9.0.8",
+    "esbuild": "^0.21.5",
+    "serverless": "^3.39.0",
+    "serverless-dynamodb": "^0.2.51",
+    "serverless-esbuild": "^1.52.1",
+    "serverless-offline": "^13.6.0",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.588.0",
+    "@aws-sdk/lib-dynamodb": "^3.588.0",
+    "uuid": "^9.0.1"
+  }
+}

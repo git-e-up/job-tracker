@@ -1,0 +1,84 @@
+service: job-tracker
+
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  environment:
+    APPLICATIONS_TABLE: applications-${sls:stage}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:Scan
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - Fn::GetAtt: [ApplicationsTable, Arn]
+
+plugins:
+  - serverless-esbuild
+  - serverless-dynamodb
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    httpPort: 4000
+  serverless-dynamodb:
+    stages:
+      - local
+    start:
+      port: 8000
+      inMemory: true
+      migrate: true
+
+functions:
+  createApplication:
+    handler: src/handlers/applications.create
+    events:
+      - http:
+          path: applications
+          method: post
+          cors: true
+
+  listApplications:
+    handler: src/handlers/applications.list
+    events:
+      - http:
+          path: applications
+          method: get
+          cors: true
+
+  updateApplication:
+    handler: src/handlers/applications.update
+    events:
+      - http:
+          path: applications/{id}
+          method: patch
+          cors: true
+
+  deleteApplication:
+    handler: src/handlers/applications.remove
+    events:
+      - http:
+          path: applications/{id}
+          method: delete
+          cors: true
+
+resources:
+  Resources:
+    ApplicationsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: applications-${sls:stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH

@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.dynamodb/
+.esbuild/
+.serverless/
+dev.log
