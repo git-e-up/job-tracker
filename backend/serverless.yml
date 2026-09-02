@@ -33,7 +33,8 @@ custom:
       - local
     start:
       port: 8000
-      inMemory: true
+      inMemory: false
+      dbPath: ./.dynamodb-data
       migrate: true
 
 functions:

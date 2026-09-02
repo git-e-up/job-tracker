@@ -3,7 +3,10 @@ export type ApplicationStatus =
   | "phone_screen"
   | "interview"
   | "offer"
-  | "rejected";
+  | "rejected"
+  | "other";
+
+export type ContactMethod = "none" | "email" | "mail" | "fax";
 
 export interface Application {
   id: string;
@@ -14,6 +17,13 @@ export interface Application {
   lastUpdated: string;
   url: string;
   notes: string;
+  activity: string;
+  employerAddress: string;
+  employerCityStateZip: string;
+  employerPhone: string;
+  contactMethod: ContactMethod;
+  contactValue: string;
+  personContacted: string;
 }
 
 export const STATUSES: ApplicationStatus[] = [
@@ -22,4 +32,7 @@ export const STATUSES: ApplicationStatus[] = [
   "interview",
   "offer",
   "rejected",
+  "other",
 ];
+
+export const CONTACT_METHODS: ContactMethod[] = ["none", "email", "mail", "fax"];

@@ -18,6 +18,13 @@ export const create: APIGatewayProxyHandler = async (event) => {
     lastUpdated: now,
     url: body.url ?? "",
     notes: body.notes ?? "",
+    activity: body.activity ?? "Applied online",
+    employerAddress: body.employerAddress ?? "",
+    employerCityStateZip: body.employerCityStateZip ?? "",
+    employerPhone: body.employerPhone ?? "",
+    contactMethod: body.contactMethod ?? "none",
+    contactValue: body.contactValue ?? "",
+    personContacted: body.personContacted ?? "",
   };
 
   await ddb.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
@@ -34,7 +41,21 @@ export const update: APIGatewayProxyHandler = async (event) => {
   const id = event.pathParameters?.id;
   const body = JSON.parse(event.body ?? "{}");
 
-  const allowed = ["company", "role", "status", "url", "notes", "dateApplied"] as const;
+  const allowed = [
+    "company",
+    "role",
+    "status",
+    "url",
+    "notes",
+    "dateApplied",
+    "activity",
+    "employerAddress",
+    "employerCityStateZip",
+    "employerPhone",
+    "contactMethod",
+    "contactValue",
+    "personContacted",
+  ] as const;
   const updates = allowed.filter((key) => body[key] !== undefined);
 
   if (!id || updates.length === 0) {

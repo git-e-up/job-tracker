@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "serverless offline start --stage local",
-    "deploy": "serverless deploy"
+    "deploy": "serverless deploy",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.145",
@@ -15,7 +16,8 @@
     "serverless-dynamodb": "^0.2.51",
     "serverless-esbuild": "^1.52.1",
     "serverless-offline": "^13.6.0",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.588.0",

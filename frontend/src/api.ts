@@ -22,7 +22,7 @@ export async function createApplication(
 
 export async function updateApplication(
   id: string,
-  input: Partial<Pick<Application, "status" | "notes" | "company" | "role" | "url" | "dateApplied">>
+  input: Partial<Omit<Application, "id" | "lastUpdated">>
 ): Promise<Application> {
   const res = await fetch(`${API_BASE}/applications/${id}`, {
     method: "PATCH",

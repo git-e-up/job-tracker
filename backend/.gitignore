@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .dynamodb/
+.dynamodb-data/
 .esbuild/
 .serverless/
 dev.log
