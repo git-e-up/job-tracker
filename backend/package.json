@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "serverless offline start --stage local",
+    "dev": "serverless offline start --stage local --noAuth",
     "deploy": "serverless deploy",
     "test": "vitest run"
   },

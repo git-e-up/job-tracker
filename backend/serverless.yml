@@ -19,6 +19,19 @@ provider:
             - dynamodb:DeleteItem
           Resource:
             - Fn::GetAtt: [ApplicationsTable, Arn]
+  # Every route below requires this key (x-api-key header) once deployed for
+  # real. Locally, `npm run dev` passes --noAuth to serverless-offline, which
+  # skips this check entirely, so local development needs no key.
+  apiGateway:
+    apiKeys:
+      - name: job-tracker-key-${sls:stage}
+    usagePlan:
+      quota:
+        limit: 5000
+        period: MONTH
+      throttle:
+        burstLimit: 20
+        rateLimit: 10
 
 plugins:
   - serverless-esbuild
@@ -45,6 +58,7 @@ functions:
           path: applications
           method: post
           cors: true
+          private: true
 
   listApplications:
     handler: src/handlers/applications.list
@@ -53,6 +67,7 @@ functions:
           path: applications
           method: get
           cors: true
+          private: true
 
   updateApplication:
     handler: src/handlers/applications.update
@@ -61,6 +76,7 @@ functions:
           path: applications/{id}
           method: patch
           cors: true
+          private: true
 
   deleteApplication:
     handler: src/handlers/applications.remove
@@ -69,6 +85,7 @@ functions:
           path: applications/{id}
           method: delete
           cors: true
+          private: true
 
 resources:
   Resources:

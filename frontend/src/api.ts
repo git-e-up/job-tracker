@@ -1,9 +1,12 @@
 import type { Application } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:4000/local";
+const API_KEY = import.meta.env.VITE_API_KEY;
+
+const authHeaders: Record<string, string> = API_KEY ? { "x-api-key": API_KEY } : {};
 
 export async function listApplications(): Promise<Application[]> {
-  const res = await fetch(`${API_BASE}/applications`);
+  const res = await fetch(`${API_BASE}/applications`, { headers: authHeaders });
   if (!res.ok) throw new Error("Failed to load applications");
   return res.json();
 }
@@ -13,7 +16,7 @@ export async function createApplication(
 ): Promise<Application> {
   const res = await fetch(`${API_BASE}/applications`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error("Failed to create application");
@@ -26,7 +29,7 @@ export async function updateApplication(
 ): Promise<Application> {
   const res = await fetch(`${API_BASE}/applications/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error("Failed to update application");
@@ -34,6 +37,6 @@ export async function updateApplication(
 }
 
 export async function deleteApplication(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/applications/${id}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/applications/${id}`, { method: "DELETE", headers: authHeaders });
   if (!res.ok) throw new Error("Failed to delete application");
 }

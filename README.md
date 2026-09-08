@@ -78,3 +78,15 @@ Requires the backend dev server to be running. Writes a timestamped JSON snapsho
 ## Deployment
 
 Not yet deployed. `backend/serverless.yml` is set up to `serverless deploy` to a real AWS account when ready — see the `deploy` script in `backend/package.json`.
+
+### API access
+
+Since there are no user accounts, every route requires an API Gateway key (`x-api-key` header) once deployed for real, with a usage plan capping requests (throttled + a monthly quota) so an unauthenticated stranger who finds the URL can't spam writes or run up a bill. Locally, `npm run dev` passes `--noAuth` to `serverless-offline`, which skips this check entirely — no key needed for local development.
+
+After deploying, get the generated key with:
+
+```bash
+serverless info --stage <stage> --verbose
+```
+
+and set it as `VITE_API_KEY` in the frontend's environment (alongside `VITE_API_BASE` pointing at the deployed API URL) so the app sends it automatically.
