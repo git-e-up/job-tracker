@@ -1,0 +1,87 @@
+# Infra-only service: hosts the built React app via S3 + CloudFront.
+# No functions here — this is a separate CloudFormation stack from the
+# backend API on purpose, since hosting and API are different concerns.
+#
+# Deploy with `npm run deploy` (see package.json), which builds the app,
+# provisions/updates this stack, syncs dist/ to the bucket, and invalidates
+# the CloudFront cache. A fresh CloudFront distribution takes ~10-15 minutes
+# to fully propagate the first time.
+service: job-tracker-frontend
+
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  region: us-east-1
+
+resources:
+  Resources:
+    FrontendBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: job-tracker-frontend-${sls:stage}-${aws:accountId}
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+
+    FrontendBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref FrontendBucket
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: cloudfront.amazonaws.com
+              Action: s3:GetObject
+              Resource: !Sub "${FrontendBucket.Arn}/*"
+              Condition:
+                StringEquals:
+                  AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
+
+    CloudFrontOAC:
+      Type: AWS::CloudFront::OriginAccessControl
+      Properties:
+        OriginAccessControlConfig:
+          Name: job-tracker-oac-${sls:stage}
+          OriginAccessControlOriginType: s3
+          SigningBehavior: always
+          SigningProtocol: sigv4
+
+    CloudFrontDistribution:
+      Type: AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Enabled: true
+          DefaultRootObject: index.html
+          DefaultCacheBehavior:
+            TargetOriginId: FrontendS3Origin
+            ViewerProtocolPolicy: redirect-to-https
+            # AWS managed "CachingOptimized" policy
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Origins:
+            - Id: FrontendS3Origin
+              DomainName: !GetAtt FrontendBucket.RegionalDomainName
+              OriginAccessControlId: !Ref CloudFrontOAC
+              S3OriginConfig:
+                OriginAccessIdentity: ""
+          # SPA fallback: any unknown path serves index.html instead of
+          # S3's raw 403 (private bucket) / 404.
+          CustomErrorResponses:
+            - ErrorCode: 403
+              ResponseCode: 200
+              ResponsePagePath: /index.html
+            - ErrorCode: 404
+              ResponseCode: 200
+              ResponsePagePath: /index.html
+
+  Outputs:
+    BucketName:
+      Value: !Ref FrontendBucket
+    DistributionId:
+      Value: !Ref CloudFrontDistribution
+    DistributionDomain:
+      Value: !GetAtt CloudFrontDistribution.DomainName

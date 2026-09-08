@@ -77,16 +77,38 @@ Requires the backend dev server to be running. Writes a timestamped JSON snapsho
 
 ## Deployment
 
-Not yet deployed. `backend/serverless.yml` is set up to `serverless deploy` to a real AWS account when ready — see the `deploy` script in `backend/package.json`.
+Two separate stacks — backend (API) and frontend (hosting) deploy independently.
+
+### Backend
+
+```bash
+cd backend
+npm run deploy   # serverless deploy --stage prod
+```
+
+Provisions the DynamoDB table, Lambda functions, and API Gateway (see API access below).
+
+### Frontend hosting (S3 + CloudFront)
+
+`frontend/serverless.yml` is a second, infra-only Serverless service (no functions) that provisions a private S3 bucket plus a CloudFront distribution in front of it — the app is only reachable through CloudFront, not the bucket directly.
+
+```bash
+cd frontend
+npm run deploy   # builds, provisions/updates the stack, syncs dist/, invalidates the CloudFront cache
+```
+
+A brand-new CloudFront distribution takes 10-15 minutes to fully propagate the first time; subsequent deploys (same distribution, just new files + a cache invalidation) are fast.
+
+Before deploying the frontend, copy `.env.production.example` to `.env.production` and fill in the real `VITE_API_BASE`/`VITE_API_KEY` from the backend deploy (see below) — **never commit `.env.production`**, since Vite bakes both values directly into the built JS bundle that ships to the browser.
 
 ### API access
 
-Since there are no user accounts, every route requires an API Gateway key (`x-api-key` header) once deployed for real, with a usage plan capping requests (throttled + a monthly quota) so an unauthenticated stranger who finds the URL can't spam writes or run up a bill. Locally, `npm run dev` passes `--noAuth` to `serverless-offline`, which skips this check entirely — no key needed for local development.
+Since there are no user accounts, every backend route requires an API Gateway key (`x-api-key` header) once deployed for real, with a usage plan capping requests (throttled + a monthly quota) so an unauthenticated stranger who finds the URL can't spam writes or run up a bill. Locally, `npm run dev` passes `--noAuth` to `serverless-offline`, which skips this check entirely — no key needed for local development.
 
-After deploying, get the generated key with:
+After deploying the backend, get the generated key with:
 
 ```bash
-serverless info --stage <stage> --verbose
+cd backend && npx serverless info --stage prod --verbose
 ```
 
-and set it as `VITE_API_KEY` in the frontend's environment (alongside `VITE_API_BASE` pointing at the deployed API URL) so the app sends it automatically.
+and set it as `VITE_API_KEY` in `frontend/.env.production` (alongside `VITE_API_BASE` pointing at the deployed API URL).

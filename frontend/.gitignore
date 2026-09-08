@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 dev.log
+.serverless/
+deploy-frontend.log
+
+# Contains the real API key, which gets baked into the built JS bundle —
+# never commit it. See .env.production.example for the shape.
+.env.production
 
 # Editor directories and files
 .vscode/*
