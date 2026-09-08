@@ -1,0 +1,52 @@
+# Separate, read-only backend for the public portfolio demo. Deployed
+# independently from serverless.yml (the full-CRUD API) via:
+#   npx serverless deploy --config serverless.demo.yml
+#
+# Only the list route exists — there is no create/update/delete function
+# here at all, so there's no write route to find, key or no key. The
+# Lambda's own IAM role only grants dynamodb:Scan, so even a crafted
+# request couldn't write to this table. Seed data with scripts/seed-demo.mjs.
+service: job-tracker-demo
+
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  environment:
+    APPLICATIONS_TABLE: applications-demo
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Scan
+          Resource:
+            - Fn::GetAtt: [ApplicationsTable, Arn]
+
+plugins:
+  - serverless-esbuild
+
+functions:
+  listApplications:
+    handler: src/handlers/applications.list
+    events:
+      - http:
+          path: applications
+          method: get
+          cors: true
+
+resources:
+  Resources:
+    ApplicationsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: applications-demo
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH

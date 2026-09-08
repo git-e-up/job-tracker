@@ -43,6 +43,8 @@ const EMPTY_EDIT_FORM: EditForm = {
 
 const labelStyle: CSSProperties = { display: "flex", flexDirection: "column", fontSize: "0.8rem", gap: "0.2rem" };
 
+const READ_ONLY = import.meta.env.VITE_READ_ONLY === "true";
+
 function App() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,12 +172,21 @@ function App() {
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 1rem", fontFamily: "system-ui, sans-serif" }}>
       <h1>Job Application Tracker</h1>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
-        <input placeholder="Company" value={company} onChange={(e) => setCompany(e.target.value)} required />
-        <input placeholder="Role" value={role} onChange={(e) => setRole(e.target.value)} required />
-        <input placeholder="Posting URL" value={url} onChange={(e) => setUrl(e.target.value)} />
-        <button type="submit">Add</button>
-      </form>
+      {READ_ONLY && (
+        <p style={{ background: "#fff8e1", border: "1px solid #f0d896", borderRadius: 4, padding: "0.6rem 0.9rem" }}>
+          This is a read-only portfolio demo with sample data — adding, editing, and deleting are disabled. The TWC
+          PDF export below still works against this sample data.
+        </p>
+      )}
+
+      {!READ_ONLY && (
+        <form onSubmit={handleSubmit} style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+          <input placeholder="Company" value={company} onChange={(e) => setCompany(e.target.value)} required />
+          <input placeholder="Role" value={role} onChange={(e) => setRole(e.target.value)} required />
+          <input placeholder="Posting URL" value={url} onChange={(e) => setUrl(e.target.value)} />
+          <button type="submit">Add</button>
+        </form>
+      )}
 
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
         <label style={labelStyle}>
@@ -205,7 +216,7 @@ function App() {
           {[...applications]
             .sort((a, b) => b.dateApplied.localeCompare(a.dateApplied))
             .map((app) =>
-            editingId === app.id ? (
+            !READ_ONLY && editingId === app.id ? (
               <tr key={app.id} style={{ borderBottom: "1px solid #eee" }}>
                 <td colSpan={5} style={{ padding: "0.75rem 0.25rem", background: "#fafafa" }}>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.6rem" }}>
@@ -295,27 +306,39 @@ function App() {
                 <td>{app.url ? <a href={app.url} target="_blank" rel="noreferrer">{app.company}</a> : app.company}</td>
                 <td>{app.role}</td>
                 <td>
-                  <select
-                    value={app.status}
-                    onChange={(e) => handleStatusChange(app.id, e.target.value as ApplicationStatus)}
-                  >
-                    {STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {s.replace("_", " ")}
-                      </option>
-                    ))}
-                  </select>
+                  {READ_ONLY ? (
+                    app.status.replace("_", " ")
+                  ) : (
+                    <select
+                      value={app.status}
+                      onChange={(e) => handleStatusChange(app.id, e.target.value as ApplicationStatus)}
+                    >
+                      {STATUSES.map((s) => (
+                        <option key={s} value={s}>
+                          {s.replace("_", " ")}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </td>
                 <td>
-                  <input
-                    type="date"
-                    value={app.dateApplied.slice(0, 10)}
-                    onChange={(e) => handleDateChange(app.id, e.target.value)}
-                  />
+                  {READ_ONLY ? (
+                    new Date(`${app.dateApplied.slice(0, 10)}T00:00:00`).toLocaleDateString()
+                  ) : (
+                    <input
+                      type="date"
+                      value={app.dateApplied.slice(0, 10)}
+                      onChange={(e) => handleDateChange(app.id, e.target.value)}
+                    />
+                  )}
                 </td>
                 <td style={{ whiteSpace: "nowrap" }}>
-                  <button onClick={() => startEdit(app)}>Edit</button>
-                  <button onClick={() => handleDelete(app.id)}>Delete</button>
+                  {!READ_ONLY && (
+                    <>
+                      <button onClick={() => startEdit(app)}>Edit</button>
+                      <button onClick={() => handleDelete(app.id)}>Delete</button>
+                    </>
+                  )}
                 </td>
               </tr>
             )

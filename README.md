@@ -2,6 +2,8 @@
 
 A full-stack job application tracker built on a serverless AWS stack (React/TypeScript frontend, Node/TypeScript Lambda backend, DynamoDB). Built as a hands-on way to learn AWS/serverless while also solving a real problem: tracking job applications and generating the weekly Texas Workforce Commission (TWC) work search log required for unemployment benefits.
 
+**Live demo**: https://dkwcmd4fdt61i.cloudfront.net — read-only, seeded with fake sample data (see [Deployment](#deployment) for why).
+
 ## Features
 
 - Track applications: company, role, status, dates, notes
@@ -77,38 +79,50 @@ Requires the backend dev server to be running. Writes a timestamped JSON snapsho
 
 ## Deployment
 
-Two separate stacks — backend (API) and frontend (hosting) deploy independently.
+There's no user-account system, so "deploy the full read/write app publicly" and "deploy something safe to share" are two different things. This repo supports both, deployed independently:
 
-### Backend
+- **`prod`** — the full CRUD API (`backend/serverless.yml`), API-key gated. **Not currently deployed.** An API key embedded in a client-side app is a deterrent against casual bots, not real access control — anyone who opens dev tools on a page using it can read the key out of the JS bundle and call the write routes directly. Real personal use of this deployment should wait until it has actual auth in front of it; until then it's meant to be run without a public frontend pointed at it (e.g. built and used locally against the deployed API), not linked from anywhere.
+- **`demo`** — a separate, genuinely read-only backend (`backend/serverless.demo.yml`) seeded with fake data, safe to link publicly. This is what the live CloudFront URL actually serves.
+
+### Demo (what's actually live)
+
+`backend/serverless.demo.yml` only declares the `listApplications` function — there is no create/update/delete route in this API Gateway deployment at all, and its Lambda's IAM role only grants `dynamodb:Scan`. That's a structural guarantee, not a client-side one: no key to extract, because there's nothing behind it to unlock.
+
+```bash
+# Backend: deploy the read-only API + seed fake data (one-time, or after a reseed)
+cd backend
+npx serverless deploy --config serverless.demo.yml
+node scripts/seed-demo.mjs      # refuses to run if the table already has data
+
+# Frontend: build in read-only mode and push to the existing hosting stack
+cd frontend
+npm run deploy:demo
+```
+
+`frontend/.env.demo` holds the demo API URL and `VITE_READ_ONLY=true` (which hides Add/Edit/Delete in the UI). It has no secret in it — the demo API needs no key — so unlike `.env.production` it's safe to commit.
+
+### Full CRUD backend (`prod`) — for future real use, once it has real auth
 
 ```bash
 cd backend
 npm run deploy   # serverless deploy --stage prod
 ```
 
-Provisions the DynamoDB table, Lambda functions, and API Gateway (see API access below).
+Provisions the DynamoDB table, Lambda functions, and API Gateway, with an API Gateway key + usage plan (throttled + a monthly quota) gating every route — see the note above on what that does and doesn't protect against. Get the generated key with:
+
+```bash
+npx serverless info --stage prod --verbose
+```
+
+To point a frontend build at it: copy `.env.production.example` to `.env.production`, fill in the real `VITE_API_BASE`/`VITE_API_KEY` — **never commit `.env.production`**, since Vite bakes both values directly into the built JS bundle. Locally, `npm run dev` passes `--noAuth` to `serverless-offline`, so no key is needed for local development regardless.
 
 ### Frontend hosting (S3 + CloudFront)
 
-`frontend/serverless.yml` is a second, infra-only Serverless service (no functions) that provisions a private S3 bucket plus a CloudFront distribution in front of it — the app is only reachable through CloudFront, not the bucket directly.
+`frontend/serverless.yml` is a third, infra-only Serverless service (no functions) that provisions a private S3 bucket plus a CloudFront distribution in front of it — the app is only reachable through CloudFront, not the bucket directly. This same hosting stack serves whichever build was most recently synced to it (`npm run deploy` for the full app, `npm run deploy:demo` for the read-only one).
 
 ```bash
 cd frontend
-npm run deploy   # builds, provisions/updates the stack, syncs dist/, invalidates the CloudFront cache
+npm run deploy   # builds (.env.production), provisions/updates the stack, syncs dist/, invalidates the cache
 ```
 
-A brand-new CloudFront distribution takes 10-15 minutes to fully propagate the first time; subsequent deploys (same distribution, just new files + a cache invalidation) are fast.
-
-Before deploying the frontend, copy `.env.production.example` to `.env.production` and fill in the real `VITE_API_BASE`/`VITE_API_KEY` from the backend deploy (see below) — **never commit `.env.production`**, since Vite bakes both values directly into the built JS bundle that ships to the browser.
-
-### API access
-
-Since there are no user accounts, every backend route requires an API Gateway key (`x-api-key` header) once deployed for real, with a usage plan capping requests (throttled + a monthly quota) so an unauthenticated stranger who finds the URL can't spam writes or run up a bill. Locally, `npm run dev` passes `--noAuth` to `serverless-offline`, which skips this check entirely — no key needed for local development.
-
-After deploying the backend, get the generated key with:
-
-```bash
-cd backend && npx serverless info --stage prod --verbose
-```
-
-and set it as `VITE_API_KEY` in `frontend/.env.production` (alongside `VITE_API_BASE` pointing at the deployed API URL).
+A brand-new CloudFront distribution can take 10-15 minutes to fully propagate the first time; subsequent deploys (same distribution, just new files + a cache invalidation) are fast.
