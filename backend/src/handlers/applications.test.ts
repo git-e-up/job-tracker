@@ -1,4 +1,5 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyHandler, APIGatewayProxyResult } from "aws-lambda";
+import { ConditionalCheckFailedException } from "@aws-sdk/client-dynamodb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { create, list, update, remove } from "./applications";
 
@@ -52,6 +53,50 @@ describe("create", () => {
     const item = JSON.parse(res.body);
     expect(item.status).toBe("rejected");
     expect(item.activity).toBe("Phone screen");
+  });
+
+  it("rejects a missing company without touching the database", async () => {
+    const res = await invoke(create, { body: JSON.stringify({ role: "Engineer" }) });
+    expect(res.statusCode).toBe(400);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty/whitespace-only company", async () => {
+    const res = await invoke(create, { body: JSON.stringify({ company: "   ", role: "Engineer" }) });
+    expect(res.statusCode).toBe(400);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-string field instead of storing a value that would crash the frontend", async () => {
+    const res = await invoke(create, {
+      body: JSON.stringify({ company: "Acme", role: { nested: "object" } }),
+    });
+    expect(res.statusCode).toBe(400);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("rejects a field longer than its max length", async () => {
+    const res = await invoke(create, {
+      body: JSON.stringify({ company: "Acme", role: "x".repeat(201) }),
+    });
+    expect(res.statusCode).toBe(400);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("rejects a status value outside the known enum", async () => {
+    const res = await invoke(create, {
+      body: JSON.stringify({ company: "Acme", role: "Engineer", status: "ghosted" }),
+    });
+    expect(res.statusCode).toBe(400);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("rejects a contactMethod value outside the known enum", async () => {
+    const res = await invoke(create, {
+      body: JSON.stringify({ company: "Acme", role: "Engineer", contactMethod: "carrier-pigeon" }),
+    });
+    expect(res.statusCode).toBe(400);
+    expect(send).not.toHaveBeenCalled();
   });
 });
 
@@ -116,6 +161,33 @@ describe("update", () => {
       .filter(([key]) => key !== "#lastUpdated")
       .map(([, value]) => value as string);
     expect(names).toEqual(["status"]);
+  });
+
+  it("rejects a status value outside the known enum without touching the database", async () => {
+    const res = await invoke(update, {
+      pathParameters: { id: "abc" },
+      body: JSON.stringify({ status: "ghosted" }),
+    });
+    expect(res.statusCode).toBe(400);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("includes a ConditionExpression requiring the item to already exist", async () => {
+    send.mockResolvedValue({ Attributes: { id: "abc", status: "applied" } });
+    await invoke(update, { pathParameters: { id: "abc" }, body: JSON.stringify({ status: "applied" }) });
+    const command = send.mock.calls[0][0];
+    expect(command.input.ConditionExpression).toBe("attribute_exists(id)");
+  });
+
+  it("returns 404 instead of upserting when the id doesn't exist", async () => {
+    send.mockRejectedValue(
+      new ConditionalCheckFailedException({ message: "conditional failed", $metadata: {} })
+    );
+    const res = await invoke(update, {
+      pathParameters: { id: "does-not-exist" },
+      body: JSON.stringify({ status: "applied" }),
+    });
+    expect(res.statusCode).toBe(404);
   });
 });
 

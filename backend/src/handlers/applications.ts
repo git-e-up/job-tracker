@@ -1,12 +1,24 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
+import { ConditionalCheckFailedException } from "@aws-sdk/client-dynamodb";
 import { PutCommand, ScanCommand, UpdateCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { v4 as uuid } from "uuid";
 import { ddb, TABLE_NAME } from "../lib/dynamodb";
+import { validateFields } from "../lib/validation";
 
 const headers = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" };
 
 export const create: APIGatewayProxyHandler = async (event) => {
   const body = JSON.parse(event.body ?? "{}");
+
+  if (typeof body.company !== "string" || body.company.trim().length === 0) {
+    return { statusCode: 400, headers, body: JSON.stringify({ message: "company is required" }) };
+  }
+
+  const errors = validateFields(body);
+  if (errors.length > 0) {
+    return { statusCode: 400, headers, body: JSON.stringify({ message: "Invalid input", errors }) };
+  }
+
   const now = new Date().toISOString();
 
   const item = {
@@ -62,6 +74,11 @@ export const update: APIGatewayProxyHandler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ message: "Nothing to update" }) };
   }
 
+  const errors = validateFields(body);
+  if (errors.length > 0) {
+    return { statusCode: 400, headers, body: JSON.stringify({ message: "Invalid input", errors }) };
+  }
+
   const expressionNames: Record<string, string> = { "#lastUpdated": "lastUpdated" };
   const expressionValues: Record<string, unknown> = { ":lastUpdated": new Date().toISOString() };
   const setClauses = ["#lastUpdated = :lastUpdated"];
@@ -74,18 +91,29 @@ export const update: APIGatewayProxyHandler = async (event) => {
     setClauses.push(`${nameKey} = ${valueKey}`);
   });
 
-  const result = await ddb.send(
-    new UpdateCommand({
-      TableName: TABLE_NAME,
-      Key: { id },
-      UpdateExpression: `SET ${setClauses.join(", ")}`,
-      ExpressionAttributeNames: expressionNames,
-      ExpressionAttributeValues: expressionValues,
-      ReturnValues: "ALL_NEW",
-    })
-  );
+  try {
+    const result = await ddb.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { id },
+        UpdateExpression: `SET ${setClauses.join(", ")}`,
+        ExpressionAttributeNames: expressionNames,
+        ExpressionAttributeValues: expressionValues,
+        // Without this, DynamoDB's UpdateItem defaults to creating a new
+        // item when the key doesn't exist, so a PATCH to a made-up id would
+        // otherwise silently plant a partial, garbage record.
+        ConditionExpression: "attribute_exists(id)",
+        ReturnValues: "ALL_NEW",
+      })
+    );
 
-  return { statusCode: 200, headers, body: JSON.stringify(result.Attributes) };
+    return { statusCode: 200, headers, body: JSON.stringify(result.Attributes) };
+  } catch (err) {
+    if (err instanceof ConditionalCheckFailedException) {
+      return { statusCode: 404, headers, body: JSON.stringify({ message: "Not found" }) };
+    }
+    throw err;
+  }
 };
 
 export const remove: APIGatewayProxyHandler = async (event) => {
