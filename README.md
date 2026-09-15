@@ -18,6 +18,10 @@ A full-stack job application tracker built on a serverless AWS stack (React/Type
 - **Local dev**: [serverless-offline](https://github.com/dherault/serverless-offline) + [serverless-dynamodb](https://github.com/raisenational/serverless-dynamodb) (DynamoDB Local)
 - **Testing**: [Vitest](https://vitest.dev/) on both frontend and backend
 
+## Dependency security
+
+This project pins Serverless Framework to v3, which carries known transitive vulnerabilities in its CLI dependencies (`tar`, `decompress`, `adm-zip`, etc.). These are present only in deploy-time CLI tooling, not in the deployed runtime — they never reach the Lambda bundle or the built frontend — so they've been reviewed and dismissed on GitHub as not applicable; one independently-fixable finding (`esbuild`) was patched directly. Upgrading to Serverless Framework v4 would resolve the rest, but requires a paid account login and forces a coupled upgrade of `serverless-offline`, `serverless-dynamodb`, and `serverless-esbuild` — not worth the added external dependency and migration risk (particularly to `serverless-dynamodb`, which backs real local TWC data) for a personal project.
+
 ## Project structure
 
 ```
