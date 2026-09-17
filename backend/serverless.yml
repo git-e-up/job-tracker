@@ -46,8 +46,13 @@ custom:
       - local
     start:
       port: 8000
-      inMemory: false
-      dbPath: ./.dynamodb-data
+      # DynamoDB Local's file-backed (dbPath) storage has a longstanding bug
+      # where UpdateItem inserts a duplicate row instead of updating in place,
+      # eventually making the duplicated key unreadable. In-memory mode avoids
+      # that storage path entirely; scripts/dev.mjs restores data from
+      # .dynamodb-data/snapshot.json on start and saves back to it on exit, so
+      # data still survives restarts.
+      inMemory: true
       migrate: true
 
 functions:

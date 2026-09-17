@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "serverless offline start --stage local --noAuth",
+    "dev": "node scripts/dev.mjs",
+    "save": "node scripts/snapshot.mjs",
     "deploy": "serverless deploy",
     "test": "vitest run"
   },
