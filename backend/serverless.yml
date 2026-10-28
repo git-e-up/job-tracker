@@ -19,6 +19,21 @@ provider:
             - dynamodb:DeleteItem
           Resource:
             - Fn::GetAtt: [ApplicationsTable, Arn]
+        # AWS is changing CloudWatch Logs IAM authorization on 2027-04-26: a
+        # Log Stream-format ARN (ending in :* or :log-stream:<name>) will no
+        # longer grant Log Group-level actions, only the 4 actions actually
+        # scoped to streams (PutLogEvents, GetLogEvents, CreateLogStream,
+        # DeleteLogStream). serverless-offline/serverless-framework's own
+        # auto-generated logging statement uses that stream-format ARN for
+        # CreateLogGroup/TagResource too, which aren't stream-scoped — add an
+        # explicit Log Group ARN (no trailing :*) grant for those so they
+        # keep working after the change.
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:TagResource
+          Resource:
+            - Fn::Sub: "arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${sls:stage}*"
   # Every route below requires this key (x-api-key header) once deployed for
   # real. Locally, `npm run dev` passes --noAuth to serverless-offline, which
   # skips this check entirely, so local development needs no key.
