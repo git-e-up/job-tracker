@@ -52,7 +52,7 @@ npm install
 npm run dev         # starts Vite on :5173
 ```
 
-Open `http://localhost:5173`. `npm run dev` runs DynamoDB Local in-memory (its file-backed storage mode has a [known bug](https://github.com/aaronshaf/dynamodb-admin/issues/105) where `UpdateItem` can silently duplicate a row instead of updating it in place, eventually corrupting that record). `backend/scripts/dev.mjs` wraps `serverless offline start` to restore data from `backend/.dynamodb-data/snapshot.json` on startup and save back to it on shutdown (Ctrl+C), so data still survives restarts without that bug. Data only lives on your machine — see Backups below — and `npm run save` snapshots mid-session as a safety net (e.g. before a crash, which skips the on-shutdown save).
+Open `http://localhost:5173`. `npm run dev` runs DynamoDB Local in-memory (its file-backed storage mode has a [known bug](https://github.com/aaronshaf/dynamodb-admin/issues/105) where `UpdateItem` can silently duplicate a row instead of updating it in place, eventually corrupting that record). `backend/scripts/dev.mjs` wraps `serverless offline start` to restore data from `backend/.dynamodb-data/snapshot.json` on startup, and saves back to it both on shutdown (Ctrl+C) and automatically every 5 minutes while running — a shutdown-only save turned out not to be enough, since anything that skips a graceful stop (closed terminal, laptop sleep, a crash) silently loses everything back to the last one. Data only lives on your machine — see Backups below — and `npm run save` snapshots on demand too.
 
 ### Tests
 
